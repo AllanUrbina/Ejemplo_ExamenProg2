@@ -1,0 +1,171 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PrimerExamen2M2
+{
+    public class Productos
+    {
+        public int IdProducto { get; set; }
+        public string NombreProducto { get; set; }
+        public decimal CostoProducto { get; set; }
+    }
+}
+///////////////////////////////////////////////////////////Class1
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PrimerExamen2M2
+{
+    public interface IProductoRepository
+    {
+        void Add(Productos productos);
+        void delete(int productoId);
+        List <Productos> GetAll();
+    }
+}
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PrimerExamen2M2
+{
+    public class FileProductosRepository : IProductoRepository
+    {
+        private List<Productos> products;
+
+        public FileProductosRepository()
+        {
+            products = new List<Productos>();
+        }
+        public void Add(Productos productos)
+        {
+            products.Add(productos);
+        }
+
+        public void delete(int productoId)
+        {
+            Productos productoAremover = products.Find(prod => prod.IdProducto == productoId);
+            if (productoAremover != null)
+            {
+                products.Remove(productoAremover);
+            }
+        }
+
+        public List<Productos> GetAll()
+        {
+            return products;
+        }
+    }
+}
+
+
+ing System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace PrimerExamen2M2
+{
+    public partial class frmProductos : Form
+    {
+        private IProductoRepository repository;
+        public frmProductos()
+        {
+            InitializeComponent();
+            repository = new FileProductosRepository();
+        }
+        // Crear el archivo
+        private void CreateFileIfNotExists()
+        {
+            if (!File.Exists("productos.txt"))
+            {
+                File.Create("productos.txt").Close();
+            }
+        }
+
+        private void btnAgregar_Click(object sender, EventArgs e)
+        {
+            Productos productos = new Productos
+            {
+                IdProducto = int.Parse(txtId.Text),
+                NombreProducto = txtProducto.Text,
+                CostoProducto = decimal.Parse(txtPrecio.Text),
+            };
+
+            repository.Add(productos);
+
+            //Limpiar los textBoxs
+            txtId.Text = "";
+            txtProducto.Text = "";
+            txtPrecio.Text = "";
+
+            ActualizarDataGriedView();
+        }
+
+        private void ActualizarDataGriedView()
+        {
+            dgvProductos.Rows.Clear();
+            List<Productos> productos = repository.GetAll();
+
+            foreach (Productos productos1 in productos)
+            {
+                dgvProductos.Rows.Add(productos1.IdProducto, productos1.NombreProducto, productos1.CostoProducto);
+            }
+        }
+
+        private void btnEliminar_Click(object sender, EventArgs e)
+        {
+            int selectedId = int.Parse(dgvProductos.CurrentRow.Cells[0].Value.ToString());
+            repository.delete(selectedId);
+            ActualizarDataGriedView();
+        }
+
+        private void btnActualizar_Click(object sender, EventArgs e)
+        {
+            SaveToFile();
+        }
+
+        private void SaveToFile()
+        {
+            using (StreamWriter writer = new StreamWriter("productos.txt"))
+            {
+                List<Productos> productos = repository.GetAll();
+                foreach (Productos productos1 in productos)
+                {
+                    writer.WriteLine($"{productos1.IdProducto},{productos1.NombreProducto},{productos1.CostoProducto}");
+                }
+            }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            // Configurar el DataGridView
+            dgvProductos.ColumnCount = 3;
+            dgvProductos.Columns[0].Name = "ID";
+            dgvProductos.Columns[1].Name = "Producto";
+            dgvProductos.Columns[2].Name = "Precio";
+
+            // Actualizar el DataGridView con los datos actuales
+            ActualizarDataGriedView();
+        }
+
+        private void btnPrecioTotal_Click(object sender, EventArgs e)
+        {
+            List<Productos> productos = repository.GetAll();
+            decimal totalPrecio = productos.AsParallel().Sum(prod => prod.CostoProducto);
+
+            
+            MessageBox.Show($"El precio total de todos los productos es: {totalPrecio}", "Precio Total");
+        }
+    }
+}
+//////////////////Fomr
