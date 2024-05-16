@@ -1,0 +1,173 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Gestion_de__Productos
+{
+    public class Producto
+    {
+        public string Name {  get; set; }
+        public decimal Precio {  get; set; }
+
+        public Producto(string name, decimal precio)
+        {
+            Name = name;
+            Precio = precio;
+        }
+    }
+}
+/////////////////////////////////////////////////////////////////////////clase 1
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Ejemplo02
+{
+    public interface IEmpleadoRepository
+    {
+        Task<List<Empleado>> GetProductoAsync();
+        Task GuardarProductos(List<Empleado> empleados);
+    }
+}
+////////////////////////////////////////////////////////////////////Interdace 1
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Ejemplo02
+{
+    public class EmpleadoRepository : IEmpleadoRepository
+    { 
+
+        private string archivoProd = "productos.txt";
+    public async Task<List<Empleado>> GetProductoAsync()
+        {
+            List<Empleado> empleados = new List<Empleado>();
+
+            if (File.Exists(archivoProd))
+            {
+                using (StreamReader sr = new StreamReader(archivoProd))
+                {
+                    string line;
+                    while ((line = await sr.ReadLineAsync()) != null)
+                    {
+                        string[] data = line.Split(',');
+
+                        empleados.Add(new Empleado(data[0], decimal.Parse(data[1])));
+                    }
+                }
+            }
+            return empleados;
+        }
+
+        public async Task GuardarProductos(List<Empleado> empleados)
+        {
+            using (StreamWriter sw = new StreamWriter(archivoProd))
+            {
+                foreach (Empleado empleado in empleados)
+                {
+                    await sw.WriteLineAsync($"{empleado.Nombre}, {empleado.Salario}");
+                }
+            }
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////Clase 2
+
+
+
+
+using System.Xml.Linq;
+
+namespace Ejemplo02
+{
+    public partial class Form1 : Form
+    {
+        private IEmpleadoRepository empleadoRepository = new EmpleadoRepository();
+        private List<Empleado> empleados = new List<Empleado>();
+        int Posicion;
+        public Form1()
+        {
+            InitializeComponent();
+        }
+        private async Task GuardarProdAsync()
+        {
+            using (StreamWriter writer = new StreamWriter("productos.txt"))
+            {
+                foreach (Empleado empleado in empleados)
+                {
+                    await writer.WriteLineAsync($"{empleado.Nombre},{empleado.Salario}");
+                }
+            }
+        }
+
+        private async Task CargarProdAsync()
+        {
+            empleados = await empleadoRepository.GetProductoAsync();
+            MostrarPrecioTotal();
+
+            dataGridView1.DataSource = null;
+            dataGridView1.DataSource = empleados;
+
+        }
+
+        private async Task<decimal> CalcularPrecioTotalAsync()
+        {
+            decimal precioTotal = 0M;
+
+            List<Empleado> empleados = await empleadoRepository.GetProductoAsync();
+
+            await Task.Run(() =>
+            {
+                // Usamos Sum con decimal en lugar de double
+                precioTotal = empleados.AsParallel().Sum(empleado => empleado.Salario);
+            });
+
+            return precioTotal;
+        }
+        private async void MostrarPrecioTotal()
+        {
+            decimal Total = await CalcularPrecioTotalAsync();
+            textBox3.Text = $"Total: {Total:C}";
+        }
+
+
+        private async void Form1_Load(object sender, EventArgs e)
+        {
+            await CargarProdAsync();
+
+        }
+
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            string producto = textBox1.Text;
+            decimal precio;
+
+            try
+            {
+                precio = decimal.Parse(textBox2.Text);
+
+                empleados.Add(new Empleado(producto, precio));
+
+                await GuardarProdAsync();
+
+                await CargarProdAsync();
+
+                textBox1.Clear();
+                textBox2.Clear();
+            }
+            catch (FormatException)
+            {
+                // Mostrar un mensaje de error al usuario
+                MessageBox.Show("El formato del precio ingresado no es válido.");
+            }
+        }
+    }
+}
+////////////Programa del Form
