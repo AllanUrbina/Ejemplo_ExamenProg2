@@ -1,0 +1,155 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PjExamen
+{
+    public class Empleado
+    {
+        public string Nombre { get; set; }
+        public double Salario { get; set; }
+
+        public Empleado(string nombre, double salario)
+        {
+            Nombre = nombre;
+            Salario = salario;
+        }
+    }
+}
+////////////////////////////////////////class1
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PjExamen
+{
+    public interface IEmpleadoRepository
+    {
+        Task<List<Empleado>> ObtenerEmpleadosAsync();
+        Task GuardarEmpleadosAsync(List<Empleado> empleados);
+    }
+}
+////////////////////////////////////////////////////////////////Interface 1
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PjExamen
+{
+    public class EmpleadoRepository : IEmpleadoRepository
+    {
+        private string archivoEmpleados = "empleados.txt";
+
+        public async Task<List<Empleado>> ObtenerEmpleadosAsync()
+        {
+            List<Empleado> empleados = new List<Empleado>();
+
+            if (File.Exists(archivoEmpleados))
+            {
+                using (StreamReader sr = new StreamReader(archivoEmpleados))
+                {
+                    string linea;
+                    while ((linea = await sr.ReadLineAsync()) != null)
+                    {
+                        string[] datos = linea.Split(',');
+                        empleados.Add(new Empleado(datos[0], double.Parse(datos[1])));
+                    }
+                }
+            }
+
+            return empleados;
+        }
+        public async Task GuardarEmpleadosAsync(List<Empleado> empleados)
+        {
+            using (StreamWriter sw = new StreamWriter(archivoEmpleados))
+            {
+                foreach (Empleado empleado in empleados)
+                {
+                    await sw.WriteLineAsync($"{empleado.Nombre},{empleado.Salario}");
+                }
+            }
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////Class2
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace PjExamen
+{
+    public partial class frmPrincipal : Form
+    {
+        private IEmpleadoRepository empleadoRepository = new EmpleadoRepository();
+        private List<Empleado> empleados = new List<Empleado>();
+
+        public frmPrincipal()
+        {
+            InitializeComponent();
+        }
+
+        private async Task CargarEmpleadosAsync()
+        {
+            empleados = await empleadoRepository.ObtenerEmpleadosAsync();
+            CalcularYMostrarSalarioTotal();
+
+            dgvGen.DataSource = null; 
+            dgvGen.DataSource = empleados;
+
+        }
+
+        private async void frmPrincipal_Load(object sender, EventArgs e)
+        {
+            await CargarEmpleadosAsync();
+        }
+
+        private async Task GuardarEmpleadosAsync()
+        {
+            await empleadoRepository.GuardarEmpleadosAsync(empleados);
+        }
+
+        private async void btnGuardar_Click(object sender, EventArgs e)
+        {
+            string nombre = txtNombre.Text;
+            double salario = double.Parse(txtSalario.Text);
+
+            empleados.Add(new Empleado(nombre, salario));
+
+            await GuardarEmpleadosAsync();
+
+            await CargarEmpleadosAsync();
+        }
+
+        private async Task<double> CalcularSalarioTotalConcurrenteAsync()
+        {
+            double salarioTotal = 0;
+
+            List<Empleado> empleados = await empleadoRepository.ObtenerEmpleadosAsync();
+
+            await Task.Run(() =>
+            {
+                salarioTotal = empleados.AsParallel().Sum(empleado => empleado.Salario);
+            });
+
+            return salarioTotal;
+        }
+
+        private async void CalcularYMostrarSalarioTotal()
+        {
+            double salarioTotal = await CalcularSalarioTotalConcurrenteAsync();
+            lblSalario.Text = $"Salario Total: {salarioTotal:C}";
+        }
+    }
+}
+/////////////////////////////////////////////Form
